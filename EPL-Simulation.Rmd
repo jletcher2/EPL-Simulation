@@ -9,17 +9,18 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-## EPL Simulation
-
-```{r EPL}
+```{r libraries, echo=FALSE}
 library(tidyverse)
 library(dplyr)
+```
 
+## Temporary Home/Away Tables
+```{r temp tables}
 EPL <- read.csv("EPL.csv")
 sMatch <- paste(EPL$HomeTeam, EPL$AwayTeam, sep = " - ")
 sTeams <- unique(c(EPL$HomeTeam, EPL$AwayTeam)) %>% sort
 
-tmp1 <- EPL %>% 
+home_table <- EPL %>% 
           group_by(HomeTeam) %>%
           summarise(P = length(FTR),
                     Pts = sum((FTHG > FTAG) * 3 + (FTHG == FTAG) * 1),
@@ -27,7 +28,7 @@ tmp1 <- EPL %>%
                     GC = sum(FTAG)) %>%
           ungroup()
 
-tmp2 <- EPL %>% 
+away_table <- EPL %>% 
           group_by(AwayTeam) %>%
           summarise(P = length(FTR),
                     Pts = sum((FTHG < FTAG) * 3 + (FTHG == FTAG) * 1),
@@ -36,19 +37,100 @@ tmp2 <- EPL %>%
           ungroup()
 
 EPL.team.stats <- data.frame(Team = sTeams,
-                            Points = tmp1$Pts + tmp2$Pts,
-                            GD = (tmp1$GS + tmp2$GS) - (tmp1$GC + tmp2$GC),
-                            TGS = (tmp1$GS + tmp2$GS)/(tmp1$P + tmp2$P),
-                            TGC = (tmp1$GC + tmp2$GC)/(tmp1$P + tmp2$P), stringsAsFactors = FALSE)
-
-
-
+                            Points = home_table$Pts + away_table$Pts,
+                            GD = (home_table$GS + away_table$GS) - (home_table$GC + away_table$GC),
+                            TGS = (home_table$GS + away_table$GS)/(home_table$P + away_table$P),
+                            TGC = (home_table$GC + away_table$GC)/(home_table$P + away_table$P), stringsAsFactors = FALSE)
 ```
 
 ### Visualizations
-
 ```{r pressure, echo=FALSE}
-plot(pressure)
+plot(home_table)
+plot(away_table)
 ```
+
+## Matches To Be Played
+```{r TBP}
+EPL.new <- expand.grid(HomeTeam = sTeams, AwayTeam = sTeams, stringsAsFactors = FALSE) %>%
+            filter(HomeTeam != AwayTeam) %>%
+            mutate(Match = paste(HomeTeam, AwayTeam, sep = " - ")) %>%
+            filter(!(Match %in% sMatch)) %>%
+            select(-Match) %>%
+            mutate(HG = mean(EPL$FTHG),
+                   AG = mean(EPL$FTAG),
+                   TG = (mean(EPL$FTHG) + mean(EPL$FTAG))/2) %>%
+            right_join(subset(EPL.team.stats, select = -c(Points, GD)),  by = c("HomeTeam" = "Team")) %>%
+            right_join(subset(EPL.team.stats, select = -c(Points, GD)), by = c("AwayTeam" = "Team")) %>%
+            setNames(c("HomeTeam", "AwayTeam", "HG", "AG", "TG", 
+                       "GS.by.H", "GC.by.H", "GS.by.A", "GC.by.A")) %>%
+            mutate(ExpHG = (GS.by.H / TG) * (GC.by.A / TG) * (HG / TG) * TG,
+                   ExpAG = (GS.by.A / TG) * (GC.by.H / TG) * (AG / TG) * TG) %>%
+            ungroup()
+```
+
+## Season Simulation
+```{r simulation}
+iSimulation <- 10000
+n <- length(sTeams)
+
+EPL.all <- data.frame(Team = rep(sTeams, iSimulation),
+                     SimNo = rep(1:iSimulation, each = n),
+                     Pts = rep(NA, n * iSimulation),
+                     GD = rep(NA, n * iSimulation),
+                     Rank = rep(NA, n * iSimulation))
+
+pb <- winProgressBar(title = "Running Simulations", 
+                     label = "Simulating ... 0% done", 
+                     min = 0, 
+                     max = iSimulation, 
+                     initial = 0)
+
+set.seed(1234)
+for (i in 1:iSimulation){
+  
+  tmp <- EPL.new %>% 
+              mutate(x1 = rpois(nrow(EPL.new), lambda = EPL.new$ExpHG), 
+                     x2 = rpois(nrow(EPL.new), lambda = EPL.new$ExpAG), 
+                     HPts = 3 * (x1 > x2) + 1 * (x1 == x2),
+                     APts = 3 * (x1 < x2) + 1 * (x1 == x2))
+  
+  res <- EPL.team.stats %>% select(Points, GD) + 
+         tmp %>% group_by(HomeTeam) %>% summarise(Pts = sum(HPts),
+                                                  GD = sum(x1) - sum(x2)) %>% select(Pts, GD) + 
+         tmp %>% group_by(AwayTeam) %>% summarise(Pts = sum(APts),
+                                                  GD = sum(x2) - sum(x1)) %>% select(Pts, GD) 
+
+  EPL.all[(n*(i-1) + 1):(n*i), c("Pts", "GD")] <- res
+  
+  res$PGD <- res$Points + (res$GD - min(res$GD) + 1) / max((res$GD - min(res$GD) + 1) + 1)
+  EPL.all[(n*(i-1) + 1):(n*i), c("Rank")] <- rank(-res$PGD, ties.method = "random")  
+
+  info <- sprintf("Simulating ... %d%% done", round((i/iSimulation)*100))
+  setWinProgressBar(pb, i, label = info)  
+}
+close(pb)
+```
+
+## Winner
+```{r winner model}
+EPL.all %>% filter(Rank == 1) %>% select(Team) %>% table/iSimulation
+```
+
+## Manchester United Projected Finish
+```{r projected }
+EPL.all %>% filter(Team == "Manchester United") %>% select(Rank) %>% table/iSimulation
+```
+
+## Point Distribution
+```{r point distribution}
+EPL.all %>% filter(Team == "Manchester United") %>% select(Rank) %>% table/iSimulation
+```
+
+
+Statistical Note: For this example, independent Poisson distributions with means ExpHG and ExpAG have been used to simulate results from. I’m not advocating the use of either the specific metric or distribution to predict football scores; I’m just demonstrating how it can be done. Of course, the code above can be amended to use the metric/distribution each one of us believes is better.
+
+The idea in the code above is that for each iteration, the remaining season results are simulated, a total points and Goal difference table is constructed (including current results as well) and a trick to calculate the ranks based on points and goal difference is used in the last couple of lines. (If anyone knows how to rank with two criteria and have a ties resolution method, let me know!) I have also added a progress bar to keep track of how the simulations are doing.
+
+
 
 Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
