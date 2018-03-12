@@ -3,4 +3,4 @@
 
 ###### Group: Jack Letcher, Treva Winlock, Andrew Brill
 ###### Organization: Bellarmine University
-###### Group: BUMSA18
+###### Team: BUMSA18
