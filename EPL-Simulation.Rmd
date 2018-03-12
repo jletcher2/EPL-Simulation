@@ -11,8 +11,38 @@ knitr::opts_chunk$set(echo = TRUE)
 
 ## EPL Simulation
 
-```{r cars}
+```{r EPL}
+library(tidyverse)
+library(dplyr)
+
 EPL <- read.csv("EPL.csv")
+sMatch <- paste(EPL$HomeTeam, EPL$AwayTeam, sep = " - ")
+sTeams <- unique(c(EPL$HomeTeam, EPL$AwayTeam)) %>% sort
+
+tmp1 <- EPL %>% 
+          group_by(HomeTeam) %>%
+          summarise(P = length(FTR),
+                    Pts = sum((FTHG > FTAG) * 3 + (FTHG == FTAG) * 1),
+                    GS = sum(FTHG),
+                    GC = sum(FTAG)) %>%
+          ungroup()
+
+tmp2 <- EPL %>% 
+          group_by(AwayTeam) %>%
+          summarise(P = length(FTR),
+                    Pts = sum((FTHG < FTAG) * 3 + (FTHG == FTAG) * 1),
+                    GS = sum(FTAG),
+                    GC = sum(FTHG)) %>%
+          ungroup()
+
+EPL.team.stats <- data.frame(Team = sTeams,
+                            Points = tmp1$Pts + tmp2$Pts,
+                            GD = (tmp1$GS + tmp2$GS) - (tmp1$GC + tmp2$GC),
+                            TGS = (tmp1$GS + tmp2$GS)/(tmp1$P + tmp2$P),
+                            TGC = (tmp1$GC + tmp2$GC)/(tmp1$P + tmp2$P), stringsAsFactors = FALSE)
+
+
+
 ```
 
 ### Visualizations
