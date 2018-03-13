@@ -12,11 +12,18 @@ knitr::opts_chunk$set(echo = TRUE)
 ```{r libraries, echo=FALSE}
 library(tidyverse)
 library(dplyr)
+library(lubridate)
 ```
 
 ## Temporary Home/Away Tables
 ```{r temp tables}
 EPL <- read.csv("EPL.csv")
+
+# Format "Date" vector
+EPL$Date <- as.Date(dmy(EPL$Date))
+EPL$Date <- as.Date(EPL$Date, "%Y/%m/%d")
+
+# Create Match and Team variables
 sMatch <- paste(EPL$HomeTeam, EPL$AwayTeam, sep = " - ")
 sTeams <- unique(c(EPL$HomeTeam, EPL$AwayTeam)) %>% sort
 
@@ -28,6 +35,9 @@ home_table <- EPL %>%
                     GC = sum(FTAG)) %>%
           ungroup()
 
+# Used for a lookup table 
+home_table <- cbind(home_table, Team_Num = 1:47)
+
 away_table <- EPL %>% 
           group_by(AwayTeam) %>%
           summarise(P = length(FTR),
@@ -35,6 +45,8 @@ away_table <- EPL %>%
                     GS = sum(FTAG),
                     GC = sum(FTHG)) %>%
           ungroup()
+
+away_table <- cbind(away_table, Team_Num = 1:47)
 
 EPL.team.stats <- data.frame(Team = sTeams,
                             Points = home_table$Pts + away_table$Pts,
@@ -70,7 +82,7 @@ EPL.new <- expand.grid(HomeTeam = sTeams, AwayTeam = sTeams, stringsAsFactors = 
 
 ## Season Simulation
 ```{r simulation}
-iSimulation <- 10000
+iSimulation <- 1000
 n <- length(sTeams)
 
 EPL.all <- data.frame(Team = rep(sTeams, iSimulation),
@@ -111,26 +123,38 @@ for (i in 1:iSimulation){
 close(pb)
 ```
 
+
+```{r teamname_addition, echo=FALSE}
+new <- EPL.all
+new[] <- home_table$HomeTeam[match(unlist(EPL.all), home_table$Team_Num)]
+
+EPL.all.new <- cbind(Team_Name = new[1], EPL.all)
+EPL.all.new <- EPL.all.new[-c(2)]
+```
+
+
 ## Winner
 ```{r winner model}
-EPL.all %>% filter(Rank == 1) %>% select(Team) %>% table/iSimulation
+EPL.all.new %>% filter(Rank == 2) %>% select(Team) %>% table/iSimulation
 ```
 
 ## Manchester United Projected Finish
 ```{r projected }
-EPL.all %>% filter(Team == "Manchester United") %>% select(Rank) %>% table/iSimulation
+EPL.all.new %>% filter(Team == "Arsenal") %>% select(Rank) %>% table/iSimulation
 ```
 
 ## Point Distribution
 ```{r point distribution}
-EPL.all %>% filter(Team == "Manchester United") %>% select(Rank) %>% table/iSimulation
+EPL.all.new %>% filter(Team == "Liverpool") %>% select(Pts) %>% table/iSimulation
+```
+## Table of Probabilities per Position
+```{r point distribution}
+table(EPL.all.new$Team, EPL.all.new$Rank)/iSimulation
 ```
 
+Statistical Note: For this example, independent Poisson distributions with means ExpHG and ExpAG have been used to simulate results from. 
 
-Statistical Note: For this example, independent Poisson distributions with means ExpHG and ExpAG have been used to simulate results from. I’m not advocating the use of either the specific metric or distribution to predict football scores; I’m just demonstrating how it can be done. Of course, the code above can be amended to use the metric/distribution each one of us believes is better.
-
-The idea in the code above is that for each iteration, the remaining season results are simulated, a total points and Goal difference table is constructed (including current results as well) and a trick to calculate the ranks based on points and goal difference is used in the last couple of lines. (If anyone knows how to rank with two criteria and have a ties resolution method, let me know!) I have also added a progress bar to keep track of how the simulations are doing.
-
+The idea in the code above is that for each iteration, the remaining season results are simulated, a total points and Goal difference table is constructed (including current results as well) and a trick to calculate the ranks based on points and goal difference is used in the last couple of lines. 
 
 
 Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
