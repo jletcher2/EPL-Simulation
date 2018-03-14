@@ -82,7 +82,7 @@ EPL.new <- expand.grid(HomeTeam = sTeams, AwayTeam = sTeams, stringsAsFactors = 
 
 ## Season Simulation
 ```{r simulation}
-iSimulation <- 1000
+iSimulation <- 500
 n <- length(sTeams)
 
 EPL.all <- data.frame(Team = rep(sTeams, iSimulation),
@@ -100,8 +100,8 @@ pb <- winProgressBar(title = "Running Simulations",
 for (i in 1:iSimulation){
   
   tmp <- EPL.new %>% 
-              mutate(x1 = rpois(nrow(EPL.new), lambda = EPL.new$GS.by.H), 
-                     x2 = rpois(nrow(EPL.new), lambda = EPL.new$GS.by.A), 
+              mutate(x1 = rpois(nrow(EPL.new), lambda = EPL.new$ExpHG), 
+                     x2 = rpois(nrow(EPL.new), lambda = EPL.new$ExpAG), 
                      HPts = 3 * (x1 > x2) + 1 * (x1 == x2),
                      APts = 3 * (x1 < x2) + 1 * (x1 == x2))
   
@@ -134,7 +134,7 @@ EPL.all.new <- EPL.all.new[-c(2)]
 
 ## Winner
 ```{r winner model}
-EPL.all.new %>% filter(Rank == 5) %>% select(Team) %>% table/iSimulation
+EPL.all.new %>% filter(Rank == 16) %>% select(Team) %>% table/iSimulation
 ```
 
 ## Arsenal Projected Finish
