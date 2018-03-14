@@ -97,12 +97,11 @@ pb <- winProgressBar(title = "Running Simulations",
                      max = iSimulation, 
                      initial = 0)
 
-set.seed(1234)
 for (i in 1:iSimulation){
   
   tmp <- EPL.new %>% 
-              mutate(x1 = rpois(nrow(EPL.new), lambda = EPL.new$ExpHG), 
-                     x2 = rpois(nrow(EPL.new), lambda = EPL.new$ExpAG), 
+              mutate(x1 = rpois(nrow(EPL.new), lambda = EPL.new$GS.by.H), 
+                     x2 = rpois(nrow(EPL.new), lambda = EPL.new$GS.by.A), 
                      HPts = 3 * (x1 > x2) + 1 * (x1 == x2),
                      APts = 3 * (x1 < x2) + 1 * (x1 == x2))
   
@@ -135,20 +134,20 @@ EPL.all.new <- EPL.all.new[-c(2)]
 
 ## Winner
 ```{r winner model}
-EPL.all.new %>% filter(Rank == 2) %>% select(Team) %>% table/iSimulation
+EPL.all.new %>% filter(Rank == 5) %>% select(Team) %>% table/iSimulation
 ```
 
-## Manchester United Projected Finish
+## Arsenal Projected Finish
 ```{r projected }
 EPL.all.new %>% filter(Team == "Arsenal") %>% select(Rank) %>% table/iSimulation
 ```
 
-## Point Distribution
+## Arsenal Point Distribution
 ```{r point distribution}
-EPL.all.new %>% filter(Team == "Liverpool") %>% select(Pts) %>% table/iSimulation
+EPL.all.new %>% filter(Team == "Arsenal") %>% select(Pts) %>% table/iSimulation
 ```
 ## Table of Probabilities per Position
-```{r point distribution}
+```{r Probabilities}
 table(EPL.all.new$Team, EPL.all.new$Rank)/iSimulation
 ```
 
