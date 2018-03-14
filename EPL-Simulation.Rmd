@@ -17,6 +17,7 @@ library(lubridate)
 
 ## Temporary Home/Away Tables
 ```{r temp tables}
+# Read in local .csv file 
 EPL <- read.csv("EPL.csv")
 
 # Format "Date" vector
@@ -27,6 +28,7 @@ EPL$Date <- as.Date(EPL$Date, "%Y/%m/%d")
 sMatch <- paste(EPL$HomeTeam, EPL$AwayTeam, sep = " - ")
 sTeams <- unique(c(EPL$HomeTeam, EPL$AwayTeam)) %>% sort
 
+# Create home table (Games Played, Pts., Goals Scored, Goals Conceded)
 home_table <- EPL %>% 
           group_by(HomeTeam) %>%
           summarise(P = length(FTR),
@@ -38,6 +40,7 @@ home_table <- EPL %>%
 # Used for a lookup table 
 home_table <- cbind(home_table, Team_Num = 1:47)
 
+# Create away table (Games Played, Pts., Goals Scored, Goals Conceded)
 away_table <- EPL %>% 
           group_by(AwayTeam) %>%
           summarise(P = length(FTR),
@@ -46,8 +49,10 @@ away_table <- EPL %>%
                     GC = sum(FTHG)) %>%
           ungroup()
 
+# Used for a lookup table
 away_table <- cbind(away_table, Team_Num = 1:47)
 
+# Create consolidated table with Total Goals Scored/Conceded
 EPL.team.stats <- data.frame(Team = sTeams,
                             Points = home_table$Pts + away_table$Pts,
                             GD = (home_table$GS + away_table$GS) - (home_table$GC + away_table$GC),
@@ -134,7 +139,7 @@ EPL.all.new <- EPL.all.new[-c(2)]
 
 ## Winner
 ```{r winner model}
-EPL.all.new %>% filter(Rank == 16) %>% select(Team) %>% table/iSimulation
+EPL.all.new %>% filter(Rank == 1) %>% select(Team) %>% table/iSimulation
 ```
 
 ## Arsenal Projected Finish
