@@ -5,6 +5,12 @@ date: "March 12, 2018"
 output: html_document
 ---
 
+
+# English Premier League 1993-2018
+## Source: http://www.football-data.co.uk/englandm.php
+
+The Poisson distribution applies when: (1) the event is something that can be counted in whole numbers; (2) occurrences are independent, so that one occurrence neither diminishes nor increases the chance of another; (3) the average frequency of occurrence for the time period in question is known; and (4) it is possible to count how many events have occurred, such as the number of times a team wins or loses during a given season. The Poisson Distribution gives the expected frequency profile for events. 
+
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
 ```
@@ -25,8 +31,8 @@ EPL$Date <- as.Date(dmy(EPL$Date))
 EPL$Date <- as.Date(EPL$Date, "%Y/%m/%d")
 
 # Create Match and Team variables
-sMatch <- paste(EPL$HomeTeam, EPL$AwayTeam, sep = " - ")
-sTeams <- unique(c(EPL$HomeTeam, EPL$AwayTeam)) %>% sort
+match_table <- paste(EPL$HomeTeam, EPL$AwayTeam, sep = " - ")
+team_table <- unique(c(EPL$HomeTeam, EPL$AwayTeam)) %>% sort
 
 # Create home table (Games Played, Pts., Goals Scored, Goals Conceded)
 home_table <- EPL %>% 
@@ -53,7 +59,7 @@ away_table <- EPL %>%
 away_table <- cbind(away_table, Team_Num = 1:47)
 
 # Create consolidated table with Total Goals Scored/Conceded
-EPL.team.stats <- data.frame(Team = sTeams,
+EPL.team.stats <- data.frame(Team = team_table,
                             Points = home_table$Pts + away_table$Pts,
                             GD = (home_table$GS + away_table$GS) - (home_table$GC + away_table$GC),
                             TGS = (home_table$GS + away_table$GS)/(home_table$P + away_table$P),
@@ -61,17 +67,20 @@ EPL.team.stats <- data.frame(Team = sTeams,
 ```
 
 ### Visualizations
-```{r pressure, echo=FALSE}
+```{r presultssure, echo=FALSE}
+# Visualize home and away tables
 plot(home_table)
 plot(away_table)
 ```
 
 ## Matches To Be Played
 ```{r TBP}
-EPL.new <- expand.grid(HomeTeam = sTeams, AwayTeam = sTeams, stringsAsFactors = FALSE) %>%
+# Create new EPL table that normalizes Goals Scored and Goals Conceded
+# Create Expected Home Goals and Expected Away Goals
+EPL.new <- expand.grid(HomeTeam = team_table, AwayTeam = team_table, stringsAsFactors = FALSE) %>%
             filter(HomeTeam != AwayTeam) %>%
             mutate(Match = paste(HomeTeam, AwayTeam, sep = " - ")) %>%
-            filter(!(Match %in% sMatch)) %>%
+            filter(!(Match %in% match_table)) %>%
             select(-Match) %>%
             mutate(HG = mean(EPL$FTHG),
                    AG = mean(EPL$FTAG),
@@ -79,86 +88,98 @@ EPL.new <- expand.grid(HomeTeam = sTeams, AwayTeam = sTeams, stringsAsFactors = 
             right_join(subset(EPL.team.stats, select = -c(Points, GD)),  by = c("HomeTeam" = "Team")) %>%
             right_join(subset(EPL.team.stats, select = -c(Points, GD)), by = c("AwayTeam" = "Team")) %>%
             setNames(c("HomeTeam", "AwayTeam", "HG", "AG", "TG", 
-                       "GS.by.H", "GC.by.H", "GS.by.A", "GC.by.A")) %>%
-            mutate(ExpHG = (GS.by.H / TG) * (GC.by.A / TG) * (HG / TG) * TG,
-                   ExpAG = (GS.by.A / TG) * (GC.by.H / TG) * (AG / TG) * TG) %>%
+                       "GSBH", "GCBH", "GSBA", "GCBA")) %>%
+            mutate(ExpHG = (GSBH / TG) * (GCBA / TG) * (HG / TG) * TG,
+                   ExpAG = (GSBA / TG) * (GCBH / TG) * (AG / TG) * TG) %>%
             ungroup()
 ```
 
 ## Season Simulation
 ```{r simulation}
+# Number of games simulated
 iSimulation <- 500
-n <- length(sTeams)
+n <- length(team_table)
 
-EPL.all <- data.frame(Team = rep(sTeams, iSimulation),
+# Create new shell for simulation data
+EPL.all <- data.frame(Team = rep(team_table, iSimulation),
                      SimNo = rep(1:iSimulation, each = n),
                      Pts = rep(NA, n * iSimulation),
                      GD = rep(NA, n * iSimulation),
                      Rank = rep(NA, n * iSimulation))
 
-pb <- winProgressBar(title = "Running Simulations", 
+# Progress Bar for simulation
+win_bar <- winProgressBar(title = "Churning Through Your Simulation", 
                      label = "Simulating ... 0% done", 
                      min = 0, 
                      max = iSimulation, 
                      initial = 0)
 
+# For loop that simulates through preset number of loops
 for (i in 1:iSimulation){
-  
-  tmp <- EPL.new %>% 
+
+# Random Generation for Poisson Distribution -- rpois
+# Lambda representing vector of non-negative means         
+  temp_table <- EPL.new %>% 
               mutate(x1 = rpois(nrow(EPL.new), lambda = EPL.new$ExpHG), 
                      x2 = rpois(nrow(EPL.new), lambda = EPL.new$ExpAG), 
                      HPts = 3 * (x1 > x2) + 1 * (x1 == x2),
                      APts = 3 * (x1 < x2) + 1 * (x1 == x2))
-  
-  res <- EPL.team.stats %>% select(Points, GD) + 
-         tmp %>% group_by(HomeTeam) %>% summarise(Pts = sum(HPts),
+# Results table   
+  results <- EPL.team.stats %>% select(Points, GD) + 
+         temp_table %>% group_by(HomeTeam) %>% summarise(Pts = sum(HPts),
                                                   GD = sum(x1) - sum(x2)) %>% select(Pts, GD) + 
-         tmp %>% group_by(AwayTeam) %>% summarise(Pts = sum(APts),
+         temp_table %>% group_by(AwayTeam) %>% summarise(Pts = sum(APts),
                                                   GD = sum(x2) - sum(x1)) %>% select(Pts, GD) 
 
-  EPL.all[(n*(i-1) + 1):(n*i), c("Pts", "GD")] <- res
+  EPL.all[(n*(i-1) + 1):(n*i), c("Pts", "GD")] <- results
   
-  res$PGD <- res$Points + (res$GD - min(res$GD) + 1) / max((res$GD - min(res$GD) + 1) + 1)
-  EPL.all[(n*(i-1) + 1):(n*i), c("Rank")] <- rank(-res$PGD, ties.method = "random")  
+  results$PGD <- results$Points + (results$GD - min(results$GD) + 1) / max((results$GD - min(results$GD) + 1) + 1)
+  EPL.all[(n*(i-1) + 1):(n*i), c("Rank")] <- rank(-results$PGD, ties.method = "random")  
 
-  info <- sprintf("Simulating ... %d%% done", round((i/iSimulation)*100))
-  setWinProgressBar(pb, i, label = info)  
+# Progress Bar for simulation results  
+  info <- sprintf("Simulating ... %d%% complete", round((i/iSimulation)*100))
+  setWinProgressBar(win_bar, i, label = info)  
 }
-close(pb)
+close(win_bar)
 ```
 
 
 ```{r teamname_addition, echo=FALSE}
+# Create new table to house lookup values for teamnames
 new <- EPL.all
 new[] <- home_table$HomeTeam[match(unlist(EPL.all), home_table$Team_Num)]
 
+# Combine tables to clean up numeric teams
 EPL.all.new <- cbind(Team_Name = new[1], EPL.all)
 EPL.all.new <- EPL.all.new[-c(2)]
 ```
 
-
 ## Winner
 ```{r winner model}
+# Output for Position, also provides probability
 EPL.all.new %>% filter(Rank == 1) %>% select(Team) %>% table/iSimulation
 ```
 
 ## Arsenal Projected Finish
 ```{r projected }
+# Output for Team, also provides probability
 EPL.all.new %>% filter(Team == "Arsenal") %>% select(Rank) %>% table/iSimulation
 ```
 
 ## Arsenal Point Distribution
 ```{r point distribution}
+# Output for Point Distribution, also provides probability
 EPL.all.new %>% filter(Team == "Arsenal") %>% select(Pts) %>% table/iSimulation
 ```
 ## Table of Probabilities per Position
 ```{r Probabilities}
+# Full table results by Team and probabilties of finish place
 table(EPL.all.new$Team, EPL.all.new$Rank)/iSimulation
 ```
 
-Statistical Note: For this example, independent Poisson distributions with means ExpHG and ExpAG have been used to simulate results from. 
+Statistical Note: For this example, independent Poisson distributions with means ExpHG and ExpAG have been used to simulate resultsults from. 
 
-The idea in the code above is that for each iteration, the remaining season results are simulated, a total points and Goal difference table is constructed (including current results as well) and a trick to calculate the ranks based on points and goal difference is used in the last couple of lines. 
+For each iteration, the remaining season results are simulated, a total points and Goal difference table is created.
+We calculate ranks based on points and goal differential.
 
 
-Note that the `echo = FALSE` parameter was added to the code chunk to prevent printing of the R code that generated the plot.
