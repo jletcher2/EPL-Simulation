@@ -6,7 +6,7 @@ output: html_document
 ---
 
 
-# English Premier League 1993-2018
+# English Premier League 1998-2018
 ## Source: http://www.football-data.co.uk/englandm.php
 
 The Poisson distribution applies when: (1) the event is something that can be counted in whole numbers; (2) occurrences are independent, so that one occurrence neither diminishes nor increases the chance of another; (3) the average frequency of occurrence for the time period in question is known; and (4) it is possible to count how many events have occurred, such as the number of times a team wins or loses during a given season. The Poisson Distribution gives the expected frequency profile for events. 
@@ -15,14 +15,14 @@ The Poisson distribution applies when: (1) the event is something that can be co
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
-```{r libraries, echo=FALSE}
+```{r libraries, echo=FALSE, results="hide", include=FALSE}
 library(tidyverse)
 library(dplyr)
 library(lubridate)
 ```
 
 ## Temporary Home/Away Tables
-```{r temp tables}
+```{r temp tables, results="hide"}
 # Read in local .csv file 
 EPL <- read.csv("EPL.csv")
 
@@ -67,7 +67,8 @@ EPL.team.stats <- data.frame(Team = team_table,
 ```
 
 ### Visualizations
-```{r presultssure, echo=FALSE}
+#### Home and Away Team Plot Charts (Games Played, Points, Goals Scored, Goals Conceded)
+```{r plot_viz, echo=FALSE}
 # Visualize home and away tables
 plot(home_table)
 plot(away_table)
@@ -95,7 +96,7 @@ EPL.new <- expand.grid(HomeTeam = team_table, AwayTeam = team_table, stringsAsFa
 ```
 
 ## Season Simulation
-```{r simulation}
+```{r simulation, results="hide"}
 # Number of games simulated
 iSimulation <- 500
 n <- length(team_table)
@@ -143,7 +144,7 @@ for (i in 1:iSimulation){
 close(win_bar)
 ```
 
-
+ 
 ```{r teamname_addition, echo=FALSE}
 # Create new table to house lookup values for teamnames
 new <- EPL.all
@@ -171,10 +172,59 @@ EPL.all.new %>% filter(Team == "Arsenal") %>% select(Rank) %>% table/iSimulation
 # Output for Point Distribution, also provides probability
 EPL.all.new %>% filter(Team == "Arsenal") %>% select(Pts) %>% table/iSimulation
 ```
-## Table of Probabilities per Position
+## Table of Probabilities per Position (Top 9)
 ```{r Probabilities}
 # Full table results by Team and probabilties of finish place
-table(EPL.all.new$Team, EPL.all.new$Rank)/iSimulation
+full_team_table <- table(EPL.all.new$Team, EPL.all.new$Rank)/iSimulation
+full_team_table <- full_team_table[,1:9]
+full_team_table
+```
+
+```{r addteam, echo=FALSE}
+# Add Team Names to stats table
+Team_Names <- data.frame(home_table$HomeTeam)
+EPL.team.stats <- cbind(Team_Names, EPL.team.stats)
+names(EPL.team.stats) <- c("Team_Name", "Team", "Points","Goal_Differential", "Mean_Goals_Scored", "Mean_Goals_Conceded")
+```
+
+### Points
+```{r point_viz, echo=FALSE}
+# Points
+ggplot(EPL.team.stats, aes(x=Team_Name,y=Points)) + 
+  geom_col() + ggtitle("Total Points Scored per Team in last past 20 Seasons (1998-99 through 2017-18)") +
+  theme(plot.title=element_text(size=11)) +
+  labs(x="Teams", y = "Points") +
+  theme(axis.text.x=element_text(angle = 90, size = 8, vjust=-.05))
+```
+
+### Goal Differential
+```{r GD_viz, echo=FALSE}
+# Goal Differential
+ggplot(EPL.team.stats, aes(x=Team_Name,y=Goal_Differential)) +
+  geom_col() + ggtitle("Total Goal Differential Scored per Team in last past 20 Seasons (1998-99 through 2017-18)") +
+  theme(plot.title=element_text(size=11)) +
+  labs(x="Teams", y = "Goal Differential") +
+  theme(axis.text.x=element_text(angle = 90, size = 8, vjust=-.05))
+```
+
+### Mean Goals Scored
+```{r MGS_viz, echo=FALSE}
+# Mean Goals Scored
+ggplot(EPL.team.stats, aes(x=Team_Name,y=Mean_Goals_Scored)) +
+  geom_col() + ggtitle("Mean Match Goals Scored per Team in last past 20 Seasons (1998-99 through 2017-18)") +
+  theme(plot.title=element_text(size=11)) +
+  labs(x="Teams", y = "Mean Goals Scored") +
+  theme(axis.text.x=element_text(angle = 90, size = 8, vjust=-.05))
+```
+
+### Mean Goals Conceded
+```{r MGC_viz, echo=FALSE}
+# Mean Goals Conceded
+ggplot(EPL.team.stats, aes(x=Team_Name,y=Mean_Goals_Conceded)) +
+  geom_col() + ggtitle("Mean Match Goals Scored per Team in last past 20 Seasons (1998-99 through 2017-18)") +
+  theme(plot.title=element_text(size=11)) +
+  labs(x="Teams", y = "Mean Goals Conceded") +
+  theme(axis.text.x=element_text(angle = 90, size = 8, vjust=-.05))
 ```
 
 Statistical Note: For this example, independent Poisson distributions with means ExpHG and ExpAG have been used to simulate resultsults from. 
