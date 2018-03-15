@@ -227,7 +227,20 @@ ggplot(EPL.team.stats, aes(x=Team_Name,y=Mean_Goals_Conceded)) +
   theme(axis.text.x=element_text(angle = 90, size = 8, vjust=-.05))
 ```
 
-Statistical Note: For this example, independent Poisson distributions with means ExpHG and ExpAG have been used to simulate resultsults from. 
+### What We Did and Why
+
+We decided to take our efforts back to a memorable place and simulate EPL data. Based on data we pulled from http://www.football-data.co.uk/englandm.php, we gathered and cleaned EPL data from 1998-2018. The object was to project a potential season winner using historical data. The potential winner is represented using probabilites of position placement. The Poisson distribution was a logical method based on the randomness caused by the rpois function. 
+
+### What We Found
+
+We found that based on the data we pulled starting in 1998, Manchester United was projected to place in the first postion and win the projected season. We created code to capture teams based on probability of placement. In later examples, Arsenal was used and presented a 28% probability of finishing in 2nd place and a 72% probability of finishing in 3rd place.
+
+### Why It Matters
+
+This would be a helpful tool with gambling if we were to bring in betting odds and manage to indentify trends through simulations. Overall this was an exciting opportunity for us to see how simulations work in real world settings. Sports analytics is a growing industry as analytics as a whole evolves.
+
+
+Statistical Note: For this example, independent Poisson distributions with means ExpHG and ExpAG have been used to simulate results from. 
 
 For each iteration, the remaining season results are simulated, a total points and Goal difference table is created.
 We calculate ranks based on points and goal differential.
