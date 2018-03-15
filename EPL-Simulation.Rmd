@@ -227,13 +227,119 @@ ggplot(EPL.team.stats, aes(x=Team_Name,y=Mean_Goals_Conceded)) +
   theme(axis.text.x=element_text(angle = 90, size = 8, vjust=-.05))
 ```
 
+## Exploratory
+## Markov Chain Simulation
+### Southampton vs. Arsenal
+
+```{r Markov Chain Simulation, echo=FALSE, include=FALSE}
+#1 Field Items
+homeTeam = 'Southampton'
+awayTeam = 'Arsenal'
+outputHomeTeam = c()
+outputAwayTeam = c()
+numberOfTimesToRunSim = 10
+randomNumber = NULL
+countGoalsScoredByHomeTeam = 0
+countGoalsScoredByAwayTeam = 0
+
+HG = mean(EPL$FTHG)
+AG = mean(EPL$FTAG)
+TG = (mean(EPL$FTHG) + mean(EPL$FTAG))/2 
+
+GSBH = EPL$FTHG
+GSBA = EPL$FTAG
+GCBA = EPL$FTHG
+GCBH = EPL$FTAG
+
+
+EPL$HomeTeamXG <- (GSBH / TG) * (GCBA / TG) * (HG / TG) * TG
+EPL$AwayTeamXG <- (GSBA / TG) * (GCBH / TG) * (AG / TG) * TG
+
+#Simulation Loop 
+for (x in 1:numberOfTimesToRunSim) {
+        
+        for (i in 1:length(EPL$HomeTeam)) {
+                
+                if(EPL$HomeTeam[i]==homeTeam){
+                        
+                        randomNumber = sample(1:100,1)
+                        
+                        if (randomNumber<=EPL$HomeTeamXG[i]*100) {
+                                print("Southampton Scored")
+                                countGoalsScoredByHomeTeam = countGoalsScoredByHomeTeam +1
+                        }
+                        }else if (EPL$AwayTeam[i]==awayTeam){
+                        
+                        randomNumber = sample(1:100,1)
+                        
+                        if(randomNumber<=EPL$AwayTeamXG[i]*100) {
+                                print("Arsenal Scored")
+                                countGoalsScoredByAwayTeam = countGoalsScoredByAwayTeam + 1
+                }
+                }
+                }
+}
+
+
+#6
+#Save Outputs
+
+outputHomeTeam = c(outputHomeTeam, countGoalsScoredByHomeTeam)
+outputAwayTeam = c(outputAwayTeam, countGoalsScoredByAwayTeam)
+
+awayTeamGamesWon <- 0
+homeTeamGamesWon <- 0
+
+#Loop Wins for Away and Home
+for (y in 1:length(outputHomeTeam)){
+        
+        if(outputHomeTeam[y]>outputAwayTeam[y]){
+                
+                homeTeamGamesWon = homeTeamGamesWon+1
+                
+        }else if (outputHomeTeam[y]<outputAwayTeam[y]){
+                
+                awayTeamGamesWon = awayTeamGamesWon+1
+        }
+        
+}
+
+HTGW = homeTeamGamesWon
+ATGW = awayTeamGamesWon
+TTGW = awayTeamGamesWon + homeTeamGamesWon
+
+percGamesWonByHomeTeam = HTGW/TTGW
+percGamesWonByAwayTeam = ATGW/TTGW
+
+# Print Outcome
+matchTeams = c(homeTeam, awayTeam)
+matchOutcome = c(percGamesWonByHomeTeam, percGamesWonByAwayTeam)
+print(matchOutcome)
+```
+
+```{r Markov Chain Contd}
+# Bar plot
+yMax = max(matchOutcome)+.1
+
+barPlotTitle = "EPL Simulation Between Two Teams"
+
+bp = barplot(matchOutcome, ylim = c(0.0, yMax), col="blue", main=barPlotTitle,ylab ="Win Probability", xlab ="Teams",
+             names.arg=c(matchTeams), cex.names=0.9,)
+text(bp, 0, round(matchOutcome, 2),cex=1,pos=3)
+
+```
+
 ### What We Did and Why
 
 We decided to take our efforts back to a memorable place and simulate EPL data. Based on data we pulled from http://www.football-data.co.uk/englandm.php, we gathered and cleaned EPL data from 1998-2018. The object was to project a potential season winner using historical data. The potential winner is represented using probabilites of position placement. The Poisson distribution was a logical method based on the randomness caused by the rpois function. 
 
+In addition, we explored Markov Chain Simulation, specifically the similation between two teams. In our example we use Southampton and Arsenal to simulate a  number of iterations using a sample size of 100. The output is fairly interesting as you can see simulated scoring as the loop progresses. 
+
 ### What We Found
 
 We found that based on the data we pulled starting in 1998, Manchester United was projected to place in the first postion and win the projected season. We created code to capture teams based on probability of placement. In later examples, Arsenal was used and presented a 28% probability of finishing in 2nd place and a 72% probability of finishing in 3rd place.
+
+The Markov Chain Simulation between Southampton and Arsenal resulted in 100% chance of Arsenal winning, given a sample size of 100 and 10 simulations. 
 
 ### Why It Matters
 
